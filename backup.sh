@@ -56,7 +56,7 @@ function backup() {
   fi
   eval "${RSYNC} ${_rsync_option} --log-file=${LOG_FILE} --link-dest=../${_last_backup_date}/ ${SRC_DIR}/ ${BACKUP_DIR}/${_new_backup_date}/"
 }
-function backup_lotate() {
+function backup_rotate() {
   local _dir_count=0
   for _dir in $(ls -r ${BACKUP_DIR}/)
   do
