@@ -3,9 +3,7 @@
 # variables
 readonly NUMBER_OF_BACKUP_STORES=30
 readonly ROOT_DIR=$(cd $(dirname $0); pwd)
-readonly SCRIPT_NAME=${0##*/}
-readonly LOG_FILE="$ROOT_DIR/${SCRIPT_NAME}.log"
-readonly NUMBER_OF_LOGFILE_BACKUP_STORES=3
+readonly LOG_FILE="/var/log/rsync-backup.log"
 readonly RSYNC="/usr/bin/rsync"
 readonly RSYNC_OPTION="-avz --delete -e 'ssh -c arcfour' --exclude='*lost+found*' --no-o --no-g"
 
