@@ -4,7 +4,7 @@
 readonly NUMBER_OF_BACKUP_STORES=30
 readonly ROOT_DIR=$(cd $(dirname $0); pwd)
 readonly RSYNC="/usr/bin/rsync"
-readonly RSYNC_OPTION="-avz --delete -e 'ssh -c arcfour' --exclude='*lost+found*' --no-o --no-g"
+readonly RSYNC_OPTION="-avz --delete --exclude='*lost+found*' --no-o --no-g"
 
 # functions
 function usage() {
