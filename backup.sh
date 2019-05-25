@@ -3,14 +3,13 @@
 # variables
 readonly NUMBER_OF_BACKUP_STORES=30
 readonly ROOT_DIR=$(cd $(dirname $0); pwd)
-readonly LOG_FILE="/var/log/rsync-backup.log"
 readonly RSYNC="/usr/bin/rsync"
 readonly RSYNC_OPTION="-avz --delete -e 'ssh -c arcfour' --exclude='*lost+found*' --no-o --no-g"
 
 # functions
 function usage() {
   echo "usage:"
-  echo "${0} [-s source dir] [-d backup dir] [-x execute]"
+  echo "${0} [-s source dir] [-d backup dir] [-l log file] [-x execute]"
   exit 1
 }
 function log() {
@@ -77,6 +76,9 @@ do
   "d" )
     readonly BACKUP_DIR=${OPTARG}
     ;;
+  "l" )
+    readonly LOG_FILE=${OPTARG}
+    ;;
   "s" )
     readonly SRC_DIR=${OPTARG}
     ;;
@@ -89,6 +91,9 @@ done
 if [ -z "${BACKUP_DIR}" -o -z "${SRC_DIR}" ]; then
   usage
   exit 1
+fi
+if [ -z "${LOG_FILE}" ]; then
+  readonly LOG_FILE="/var/log/rsync-backup/backup.log"
 fi
 
 
