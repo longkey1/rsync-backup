@@ -21,7 +21,7 @@ function log() {
     _dry_run="***DRY RUN*** "
   fi
 
-  echo -e "$(date '+%Y-%m-%dT%H:%M:%S') ${dry_run}$@"| tee -a ${LOG_FILE}
+  echo -e "$(date '+%Y-%m-%dT%H:%M:%S') ${_dry_run}$@"| tee -a ${LOG_FILE}
 }
 function log_rotate() {
   if [ -z "${FLAG_EXEC}" ]; then
