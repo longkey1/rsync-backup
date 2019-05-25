@@ -8,25 +8,9 @@ readonly LOG_FILE="$ROOT_DIR/${SCRIPT_NAME}.log"
 readonly NUMBER_OF_LOGFILE_BACKUP_STORES=3
 readonly RSYNC="/usr/bin/rsync"
 readonly RSYNC_OPTION="-avz --delete -e 'ssh -c arcfour' --exclude='*lost+found*' --no-o --no-g"
-# options
-while getopts d:s:x opt
-do
-  case ${opt} in
-  "d" )
-    readonly BACKUP_DIR=${OPTARG}
-    ;;
-  "s" )
-    readonly SRC_DIR=${OPTARG}
-    ;;
-  "x" )
-    readonly FLAG_EXEC="TRUE"
-    ;;
-  :|\?) usage;;
-  esac
-done
 
 # functions
-usage() {
+function usage() {
   echo "usage:"
   echo "${0} [-s source dir] [-d backup dir] [-x execute]"
   exit 1
@@ -85,6 +69,29 @@ function backup_lotate() {
     fi
   done
 }
+
+
+
+# options
+while getopts d:s:x opt
+do
+  case ${opt} in
+  "d" )
+    readonly BACKUP_DIR=${OPTARG}
+    ;;
+  "s" )
+    readonly SRC_DIR=${OPTARG}
+    ;;
+  "x" )
+    readonly FLAG_EXEC="TRUE"
+    ;;
+  :|\?) usage;;
+  esac
+done
+if [ -z "${BACKUP_DIR}" -o -z "${SRC_DIR}" ]; then
+  usage
+  exit 1
+fi
 
 
 
