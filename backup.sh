@@ -46,7 +46,7 @@ function get_last_backup_date() {
 }
 function backup() {
   local _new_backup_date=$(date +%Y%m%d)
-  local _last_backup_date=$(get_last_backup_date ${BACKUP_DIR} ${_new_backup_date})
+  local _last_backup_date=$(get_last_backup_date ${_new_backup_date})
 
   mkdir -p "${BACKUP_DIR}/${_new_backup_date}"
 
