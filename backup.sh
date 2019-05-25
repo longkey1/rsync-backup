@@ -29,7 +29,7 @@ function log_rotate() {
   fi
 
   local _backup_logfile=${LOGFILE}.$(date +%Y%m --date '1 month ago')
-  local _backup_store_number=$(expr ${NUMBER_OF_LOGFILE_BACKUP_STORES}+1)
+  local _backup_store_number=$(expr ${NUMBER_OF_LOGFILE_BACKUP_STORES} + 1)
   if [ ! -e ${_backup_logfile} ]; then
     mv ${LOG_FILE} ${_backup_logfile}
     find ${LOG_FILE}.* | sort -r | tail -n +${_backup_store_number} | xargs --no-run-if-empty rm
@@ -60,7 +60,7 @@ function backup_rotate() {
   local _dir_count=0
   for _dir in $(ls -r ${BACKUP_DIR}/)
   do
-    _dir_count=$(expr ${_dir_count}+1)
+    _dir_count=$(expr ${_dir_count} + 1)
     if [ ${_dir_count} -gt ${NUMBER_OF_BACKUP_STORES} ]; then
       if [ -n "${FLAG_EXEC}" ]; then
         rm -r "${BACKUP_DIR}/${_dir}"
