@@ -106,6 +106,8 @@ fi
 
 # main
 
+log "rsync-backup start"
 log_rotate
 backup
 backup_rotate
+log "rsync-backup end"
