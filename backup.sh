@@ -28,10 +28,15 @@ function log_rotate() {
 
   local _backup_logfile=${LOG_FILE}.$(date +%Y%m --date '1 month ago')
   local _backup_store_number=$(expr ${NUMBER_OF_LOG_FILE_BACKUP_STORES} + 1)
-  if [ ! -e ${_backup_logfile} ]; then
-    mv ${LOG_FILE} ${_backup_logfile}
-    find ${LOG_FILE}.* | sort -r | tail -n +${_backup_store_number} | xargs --no-run-if-empty rm
+  if [ -e ${_backup_logfile} ]; then
+    return
   fi
+  if [ ! -e ${LOG_FILE} ]; then
+    return
+  fi
+
+  mv ${LOG_FILE} ${_backup_logfile}
+  find ${LOG_FILE}.* | sort -r | tail -n +${_backup_store_number} | xargs --no-run-if-empty rm
 }
 function get_last_backup_date() {
   local _new_backup_date="$1"
