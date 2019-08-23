@@ -2,7 +2,6 @@
 
 # variables
 readonly NUMBER_OF_BACKUP_STORES=30
-readonly NUMBER_OF_LOG_FILE_BACKUP_STORES=3
 readonly ROOT_DIR=$(cd $(dirname $0); pwd)
 readonly RSYNC="/usr/bin/rsync"
 readonly RSYNC_OPTION="-avz --delete --exclude='*lost+found*' --no-o --no-g"
@@ -20,23 +19,6 @@ function log() {
   fi
 
   echo -e "$(date '+%Y-%m-%dT%H:%M:%S') ${_dry_run}$@"| tee -a ${LOG_FILE}
-}
-function log_rotate() {
-  if [ -z "${FLAG_EXEC}" ]; then
-    return
-  fi
-
-  local _backup_logfile=${LOG_FILE}.$(date +%Y%m --date '1 month ago')
-  local _backup_store_number=$(expr ${NUMBER_OF_LOG_FILE_BACKUP_STORES} + 1)
-  if [ -e ${_backup_logfile} ]; then
-    return
-  fi
-  if [ ! -e ${LOG_FILE} ]; then
-    return
-  fi
-
-  mv ${LOG_FILE} ${_backup_logfile}
-  find ${LOG_FILE}.* | sort -r | tail -n +${_backup_store_number} | xargs --no-run-if-empty rm
 }
 function get_last_backup_date() {
   local _new_backup_date="$1"
@@ -107,7 +89,6 @@ fi
 # main
 
 log "rsync-backup start"
-log_rotate
 backup
 backup_rotate
 log "rsync-backup end"
