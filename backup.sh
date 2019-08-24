@@ -4,7 +4,7 @@
 readonly NUMBER_OF_BACKUP_STORES=30
 readonly ROOT_DIR=$(cd $(dirname $0); pwd)
 readonly RSYNC="/usr/bin/rsync"
-readonly RSYNC_OPTION="-avz --delete --exclude='*lost+found*' --no-o --no-g"
+readonly RSYNC_OPTION="-avz --delete --exclude='*lost+found*'"
 
 # functions
 function usage() {
@@ -81,7 +81,7 @@ if [ -z "${BACKUP_DIR}" -o -z "${SRC_DIR}" ]; then
   exit 1
 fi
 if [ -z "${LOG_FILE}" ]; then
-  readonly LOG_FILE="/var/log/rsync-backup/backup.log"
+  readonly LOG_FILE="/var/log/rsync-backup.log"
 fi
 
 
