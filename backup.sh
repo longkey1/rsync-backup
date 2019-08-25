@@ -1,15 +1,30 @@
 #!/usr/bin/env bash
 
 # variables
-readonly NUMBER_OF_BACKUP_STORES=30
-readonly ROOT_DIR=$(cd $(dirname $0); pwd)
-readonly RSYNC="/usr/bin/rsync"
-readonly RSYNC_OPTION="-avz --delete --exclude='*lost+found*'"
+NUMBER_OF_BACKUP_STORES=30
+LOG_FILE="/var/log/rsync-backup.log"
+RSYNC_EXEC="/usr/bin/rsync"
+RSYNC_OPTION="-avz --delete --exclude='*lost+found*'"
+#
+ROOT_DIR=$(cd $(dirname $0); pwd)
 
 # functions
 function usage() {
-  echo "usage:"
-  echo "${0} [-s source dir] [-d backup dir] [-l log file] [-x execute]"
+    cat <<EOF
+$(basename ${0}) is a tool for ...
+
+Usage:
+    $(basename ${0}) [command] [<options>]
+
+Options:
+    -s    source directory
+    -d    distination directory
+    -n    number of backup stores [default 30]
+    -l    log file path [default ${LOG_FILE}]
+    -e    rsync executable path [default ${RSYNC_EXEC}]
+    -x    execute mode [default dry run mode]
+    -h    print this
+EOF
   exit 1
 }
 function log() {
@@ -22,9 +37,9 @@ function log() {
 }
 function get_last_backup_date() {
   local _new_backup_date="$1"
-  local _last_backup_date=$(ls -r ${BACKUP_DIR}/ | grep ^[0-9]*$ | head -1)
+  local _last_backup_date=$(ls -r ${DST_DIR}/ | grep ^[0-9]*$ | head -1)
   if [ "${_new_backup_date}" = "${_last_backup_date}" ]; then
-    local _last_backup_date=$(ls -r ${BACKUP_DIR}/ | grep ^[0-9]*$ | head -2 | tail -1)
+    local _last_backup_date=$(ls -r ${DST_DIR}/ | grep ^[0-9]*$ | head -2 | tail -1)
   fi
 
   echo ${_last_backup_date}
@@ -33,24 +48,24 @@ function backup() {
   local _new_backup_date=$(date +%Y%m%d)
   local _last_backup_date=$(get_last_backup_date ${_new_backup_date})
 
-  mkdir -p "${BACKUP_DIR}/${_new_backup_date}"
+  mkdir -p "${DST_DIR}/${_new_backup_date}"
 
   local _rsync_option="${RSYNC_OPTION}"
   if [ -z "${FLAG_EXEC}" ]; then
     _rsync_option="${_rsync_option} -n"
   fi
-  eval "${RSYNC} ${_rsync_option} --log-file=${LOG_FILE} --link-dest=../${_last_backup_date}/ ${SRC_DIR}/ ${BACKUP_DIR}/${_new_backup_date}/"
+  eval "${RSYNC_EXEC} ${_rsync_option} --log-file=${LOG_FILE} --link-dest=../${_last_backup_date}/ ${SRC_DIR}/ ${DST_DIR}/${_new_backup_date}/"
 }
 function backup_rotate() {
   local _dir_count=0
-  for _dir in $(ls -r ${BACKUP_DIR}/)
+  for _dir in $(ls -r ${DST_DIR}/)
   do
     _dir_count=$(expr ${_dir_count} + 1)
     if [ ${_dir_count} -gt ${NUMBER_OF_BACKUP_STORES} ]; then
       if [ -n "${FLAG_EXEC}" ]; then
-        rm -r "${BACKUP_DIR}/${_dir}"
+        rm -r "${DST_DIR}/${_dir}"
       fi
-      log "deleted ${BACKUP_DIR}/${_dir} for lotate"
+      log "deleted ${DST_DIR}/${_dir} for lotate"
     fi
   done
 }
@@ -58,32 +73,37 @@ function backup_rotate() {
 
 
 # options
-while getopts d:s:x opt
+while getopts s:d:n:l:e:o:x opt
 do
   case ${opt} in
+  "s" )
+    SRC_DIR=${OPTARG}
+    ;;
   "d" )
-    readonly BACKUP_DIR=${OPTARG}
+    DST_DIR=${OPTARG}
+    ;;
+  "n" )
+    NUMBER_OF_BACKUP_STORES=${OPTARG}
     ;;
   "l" )
-    readonly LOG_FILE=${OPTARG}
+    LOG_FILE=${OPTARG}
     ;;
-  "s" )
-    readonly SRC_DIR=${OPTARG}
+  "e" )
+    RSYNC_EXEC=${OPTARG}
+    ;;
+  "o" )
+    RSYNC_OPTION=${OPTARG}
     ;;
   "x" )
-    readonly FLAG_EXEC="TRUE"
+    FLAG_EXEC="TRUE"
     ;;
   :|\?) usage;;
   esac
 done
-if [ -z "${BACKUP_DIR}" -o -z "${SRC_DIR}" ]; then
+if [ -z "${SRC_DIR}" -o -z "${DST_DIR}" ]; then
   usage
   exit 1
 fi
-if [ -z "${LOG_FILE}" ]; then
-  readonly LOG_FILE="/var/log/rsync-backup.log"
-fi
-
 
 
 # main
