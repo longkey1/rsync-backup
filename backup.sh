@@ -10,20 +10,20 @@ ROOT_DIR=$(cd $(dirname $0); pwd)
 
 # functions
 function usage() {
-    cat <<EOF
+  cat <<EOF
 $(basename ${0}) is a tool for ...
 
 Usage:
-    $(basename ${0}) [command] [<options>]
+  $(basename ${0}) [command] [<options>]
 
 Options:
-    -s    source directory
-    -d    distination directory
-    -n    number of backup stores [default 30]
-    -l    log file path [default ${LOG_FILE}]
-    -e    rsync executable path [default ${RSYNC_EXEC}]
-    -x    execute mode [default dry run mode]
-    -h    print this
+  -s  source directory
+  -d  distination directory
+  -n  number of backup stores [default 30]
+  -l  log file path [default ${LOG_FILE}]
+  -e  rsync executable path [default ${RSYNC_EXEC}]
+  -x  execute mode [default dry run mode]
+  -h  print this
 EOF
   exit 1
 }
