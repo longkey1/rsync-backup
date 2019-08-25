@@ -14,12 +14,12 @@ function usage() {
 $(basename ${0}) is a tool for ...
 
 Usage:
-  $(basename ${0}) [command] [<options>]
+  $(basename ${0}) [<options>]
 
 Options:
   -s  source directory
   -d  distination directory
-  -n  number of backup stores [default 30]
+  -n  number of backup stores [default ${NUMBER_OF_BACKUP_STORES}]
   -l  log file path [default ${LOG_FILE}]
   -e  rsync executable path [default ${RSYNC_EXEC}]
   -x  execute mode [default dry run mode]
