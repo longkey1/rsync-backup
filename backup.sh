@@ -106,6 +106,15 @@ if [ -z "${SRC_DIR}" -o -z "${DST_DIR}" ]; then
 fi
 
 
+
+# duplicate check
+if [ $$ != $(pgrep -fo $0) ]; then
+  echo "$(basename $0) is already running."
+  exit 1
+fi
+
+
+
 # main
 
 log "rsync-backup start"
