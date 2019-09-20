@@ -108,7 +108,7 @@ fi
 
 
 # duplicate check
-if [ $$ != $(pgrep -fo $0) ]; then
+if [ $$ != $(pgrep -fo $0) -a $$ != $(pgrep -P ${PPID}) ]; then
   echo "$(basename $0) is already running."
   exit 1
 fi
