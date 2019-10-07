@@ -108,10 +108,11 @@ fi
 
 
 # duplicate check
-if [ $$ != $(pgrep -fo $0) -a $$ != $(pgrep -P ${PPID}) ]; then
-  echo "$($0) is already running."
+if [ $$ = $(pgrep -fo $0) -o $$ = $(pgrep -P ${PPID}) ]; then
+  echo "${0} is already running."
   exit 1
 fi
+
 
 
 
