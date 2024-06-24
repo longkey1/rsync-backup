@@ -3,7 +3,7 @@
 ## Usage
 
 ```
-$ rsync-backup.sh [<options>]
+$ backup.sh [<options>]
 ```
 
 ## Options
