@@ -127,9 +127,7 @@ fi
 
 
 
-
 # main
-
 log "rsync-backup start"
 backup
 backup_rotate
