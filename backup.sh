@@ -4,7 +4,8 @@
 NUMBER_OF_BACKUP_STORES=30
 LOG_FILE="/var/log/rsync-backup.log"
 RSYNC_EXEC="/usr/bin/rsync"
-RSYNC_OPTION="-avz --delete --exclude='*lost+found*'"
+RSYNC_OPTION="-avz --delete"
+RSYNC_EXCLUDE=""
 #
 ROOT_DIR=$(cd $(dirname $0); pwd)
 
@@ -19,10 +20,12 @@ Usage:
 Options:
   -s  source directory
   -d  distination directory
-  -n  number of backup stores [default ${NUMBER_OF_BACKUP_STORES}]
-  -l  log file path [default ${LOG_FILE}]
-  -e  rsync executable path [default ${RSYNC_EXEC}]
-  -x  execute mode [default dry run mode]
+  -n  number of backup stores [default: ${NUMBER_OF_BACKUP_STORES}]
+  -l  log file path [default: ${LOG_FILE}]
+  -e  exclude paths, available to separate by space [example: /aaa /bbb]
+  -r  rsync executable path [default: ${RSYNC_EXEC}]
+  -x  execute mode [default: dry run mode]
+  -o  rsync option [default: -avz --delete]
   -h  print this
 EOF
   exit 1
@@ -51,10 +54,16 @@ function backup() {
   mkdir -p "${DST_DIR}/${_new_backup_date}"
 
   local _rsync_option="${RSYNC_OPTION}"
+  if [ -n "${RSYNC_EXCLUDE}" ]; then
+    for ex in ${RSYNC_EXCLUDE}; do
+      _rsync_option="${_rsync_option} --exclude=${ex}"
+    done
+  fi
   if [ -z "${FLAG_EXEC}" ]; then
     _rsync_option="${_rsync_option} -n"
   fi
-  eval "${RSYNC_EXEC} ${_rsync_option} --log-file=${LOG_FILE} --link-dest=../${_last_backup_date}/ ${SRC_DIR}/ ${DST_DIR}/${_new_backup_date}/"
+  local _command="${RSYNC_EXEC} ${_rsync_option} --log-file=${LOG_FILE} --link-dest=../${_last_backup_date}/ ${SRC_DIR}/ ${DST_DIR}/${_new_backup_date}/"
+  echo "${_command}" && eval "${_command}"
 }
 function backup_rotate() {
   local _dir_count=0
@@ -88,8 +97,11 @@ do
   "l" )
     LOG_FILE=${OPTARG}
     ;;
-  "e" )
+  "r" )
     RSYNC_EXEC=${OPTARG}
+    ;;
+  "e" )
+    RSYNC_EXCLUDE=${OPTARG}
     ;;
   "o" )
     RSYNC_OPTION=${OPTARG}
