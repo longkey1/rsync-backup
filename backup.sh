@@ -26,6 +26,7 @@ Options:
   -r  rsync executable path [default: ${RSYNC_EXEC}]
   -x  execute mode [default: dry run mode]
   -o  rsync option [default: -avz --delete]
+  -t  task name for concurrent control [example: task1]
   -h  print this
 EOF
   exit 1
@@ -83,7 +84,7 @@ function backup_rotate() {
 
 
 # options
-while getopts s:d:n:l:e:o:x opt
+while getopts s:d:n:l:e:o:xt: opt
 do
   case ${opt} in
   "s" )
@@ -110,6 +111,9 @@ do
   "x" )
     FLAG_EXEC="TRUE"
     ;;
+  "t" )
+    TASK_NAME=${OPTARG}
+    ;;
   :|\?) usage;;
   esac
 done
@@ -121,9 +125,60 @@ fi
 
 
 # duplicate check
-if [ $$ != $(pgrep -fo $0) -a ${PPID} != $(pgrep -fo $0) ]; then
-  echo "${0} is already running."
-  exit 1
+SCRIPT_NAME=$(basename "$0")
+
+# Gather all ancestor PIDs to exclude them (e.g. wrapper shells)
+ancestors="$$"
+current_pid=$$
+while [ -n "$current_pid" ] && [ "$current_pid" -gt 1 ]; do
+  current_pid=$(ps -o ppid= -p "$current_pid" 2>/dev/null | tr -d ' ')
+  if [ -n "$current_pid" ] && [ "$current_pid" -gt 0 ]; then
+    ancestors="${ancestors}|${current_pid}"
+  else
+    break
+  fi
+done
+
+is_descendant() {
+  local target_pid=$1
+  local current=$target_pid
+  while [ -n "$current" ] && [ "$current" -gt 1 ]; do
+    current=$(ps -o ppid= -p "$current" 2>/dev/null | tr -d ' ')
+    if [ "$current" = "$$" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [ -n "${TASK_NAME}" ]; then
+  # check for specific task name
+  duplicate_pids=$(pgrep -f "${SCRIPT_NAME}" | grep -v -E "^(${ancestors})$" | while read -r pid; do
+    if is_descendant "$pid"; then
+      continue
+    fi
+    if ps -p "$pid" -o args= 2>/dev/null | grep -q -E -- "-t[[:space:]]+${TASK_NAME}([[:space:]]|$|;)"; then
+      echo "$pid"
+    fi
+  done)
+  if [ -n "${duplicate_pids}" ]; then
+    echo "${0} task ${TASK_NAME} is already running."
+    exit 1
+  fi
+else
+  # check for script running without -t
+  duplicate_pids=$(pgrep -f "${SCRIPT_NAME}" | grep -v -E "^(${ancestors})$" | while read -r pid; do
+    if is_descendant "$pid"; then
+      continue
+    fi
+    if ps -p "$pid" -o args= 2>/dev/null | grep -q -v -E -- "-t[[:space:]]+[^[:space:]]+"; then
+      echo "$pid"
+    fi
+  done)
+  if [ -n "${duplicate_pids}" ]; then
+    echo "${0} (without task name) is already running."
+    exit 1
+  fi
 fi
 
 
