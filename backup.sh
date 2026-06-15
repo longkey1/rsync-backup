@@ -40,10 +40,7 @@ function log() {
 }
 function get_last_backup_date() {
   local _new_backup_date="$1"
-  local _last_backup_date=$(ls -r ${DST_DIR}/ | grep ^[0-9]*$ | head -1)
-  if [ "${_new_backup_date}" = "${_last_backup_date}" ]; then
-    local _last_backup_date=$(ls -r ${DST_DIR}/ | grep ^[0-9]*$ | head -2 | tail -1)
-  fi
+  local _last_backup_date=$(ls -r ${DST_DIR}/ 2>/dev/null | grep ^[0-9]*$ | awk -v new="${_new_backup_date}" '$1 < new' | head -1)
 
   echo ${_last_backup_date}
 }
@@ -62,7 +59,11 @@ function backup() {
   if [ -z "${FLAG_EXEC}" ]; then
     _rsync_option="${_rsync_option} -n"
   fi
-  local _command="${RSYNC_EXEC} ${_rsync_option} --log-file=${LOG_FILE} --link-dest=../${_last_backup_date}/ ${SRC_DIR}/ ${DST_DIR}/${_new_backup_date}/"
+  local _command="${RSYNC_EXEC} ${_rsync_option} --log-file=${LOG_FILE}"
+  if [ -n "${_last_backup_date}" ]; then
+    _command="${_command} --link-dest=../${_last_backup_date}/"
+  fi
+  _command="${_command} ${SRC_DIR}/ ${DST_DIR}/${_new_backup_date}/"
   echo "${_command}" && eval "${_command}"
 }
 function backup_rotate() {
