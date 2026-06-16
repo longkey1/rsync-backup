@@ -37,7 +37,12 @@ function log() {
     _dry_run="***DRY RUN*** "
   fi
 
-  echo -e "$(date '+%Y-%m-%dT%H:%M:%S') ${_dry_run}$@"| tee -a ${LOG_FILE}
+  local _task=""
+  if [ -n "${TASK_NAME}" ]; then
+    _task="[${TASK_NAME}] "
+  fi
+
+  echo -e "$(date '+%Y/%m/%d %H:%M:%S') ${_task}${_dry_run}$@"| tee -a ${LOG_FILE}
 }
 function get_last_backup_date() {
   local _new_backup_date="$1"
