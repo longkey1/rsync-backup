@@ -6,6 +6,7 @@ LOG_FILE="/var/log/rsync-backup.log"
 RSYNC_EXEC="/usr/bin/rsync"
 RSYNC_OPTION="-avz --delete"
 RSYNC_EXCLUDE=""
+RSYNC_PASSFILE=""
 #
 ROOT_DIR=$(
 	cd $(dirname $0)
@@ -21,16 +22,17 @@ Usage:
   $(basename ${0}) [<options>]
 
 Options:
-  -s  source directory
-  -d  distination directory
-  -n  number of backup stores [default: ${NUMBER_OF_BACKUP_STORES}]
-  -l  log file path [default: ${LOG_FILE}]
-  -e  exclude paths, available to separate by space [example: /aaa /bbb]
-  -r  rsync executable path [default: ${RSYNC_EXEC}]
-  -x  execute mode [default: dry run mode]
-  -o  rsync option [default: -avz --delete]
-  -t  task name for concurrent control [example: task1]
-  -h  print this
+  -s, --source       source directory
+  -d, --destination  destination directory
+  -n, --number       number of backup stores [default: ${NUMBER_OF_BACKUP_STORES}]
+  -l, --log          log file path [default: ${LOG_FILE}]
+  -e, --exclude      exclude paths, available to separate by space [example: /aaa /bbb]
+  -r, --rsync        rsync executable path [default: ${RSYNC_EXEC}]
+  -p, --password     password file path for rsync daemon authentication
+  -x, --execute      execute mode [default: dry run mode]
+  -o, --option       rsync option [default: -avz --delete]
+  -t, --task         task name for concurrent control [example: task1]
+  -h, --help         print this
 EOF
 	exit 1
 }
@@ -63,6 +65,9 @@ function backup() {
 	mkdir -p "${DST_DIR}/${_new_backup_date}"
 
 	local _rsync_option="${RSYNC_OPTION}"
+	if [ -n "${RSYNC_PASSFILE}" ]; then
+		_rsync_option="${_rsync_option} --password-file=${RSYNC_PASSFILE}"
+	fi
 	if [ -n "${RSYNC_EXCLUDE}" ]; then
 		for ex in ${RSYNC_EXCLUDE}; do
 			_rsync_option="${_rsync_option} --exclude=${ex}"
@@ -95,36 +100,54 @@ function backup_rotate() {
 }
 
 # options
-while getopts s:d:n:l:e:o:xt: opt; do
-	case ${opt} in
-	"s")
-		SRC_DIR=${OPTARG}
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	-s | --source)
+		SRC_DIR="$2"
+		shift 2
 		;;
-	"d")
-		DST_DIR=${OPTARG}
+	-d | --destination)
+		DST_DIR="$2"
+		shift 2
 		;;
-	"n")
-		NUMBER_OF_BACKUP_STORES=${OPTARG}
+	-n | --number)
+		NUMBER_OF_BACKUP_STORES="$2"
+		shift 2
 		;;
-	"l")
-		LOG_FILE=${OPTARG}
+	-l | --log)
+		LOG_FILE="$2"
+		shift 2
 		;;
-	"r")
-		RSYNC_EXEC=${OPTARG}
+	-r | --rsync)
+		RSYNC_EXEC="$2"
+		shift 2
 		;;
-	"e")
-		RSYNC_EXCLUDE=${OPTARG}
+	-p | --password)
+		RSYNC_PASSFILE="$2"
+		shift 2
 		;;
-	"o")
-		RSYNC_OPTION=${OPTARG}
+	-e | --exclude)
+		RSYNC_EXCLUDE="$2"
+		shift 2
 		;;
-	"x")
+	-o | --option)
+		RSYNC_OPTION="$2"
+		shift 2
+		;;
+	-x | --execute)
 		FLAG_EXEC="TRUE"
+		shift
 		;;
-	"t")
-		TASK_NAME=${OPTARG}
+	-t | --task)
+		TASK_NAME="$2"
+		shift 2
 		;;
-	: | \?) usage ;;
+	-h | --help)
+		usage
+		;;
+	*)
+		usage
+		;;
 	esac
 done
 if [ -z "${SRC_DIR}" -o -z "${DST_DIR}" ]; then
@@ -165,7 +188,7 @@ if [ -n "${TASK_NAME}" ]; then
 		if is_descendant "$pid"; then
 			continue
 		fi
-		if ps -p "$pid" -o args= 2>/dev/null | grep -q -E -- "-t[[:space:]]+${TASK_NAME}([[:space:]]|$|;)"; then
+		if ps -p "$pid" -o args= 2>/dev/null | grep -q -E -- "(-t|--task)[[:space:]]+${TASK_NAME}([[:space:]]|$|;)"; then
 			echo "$pid"
 		fi
 	done)
@@ -174,12 +197,12 @@ if [ -n "${TASK_NAME}" ]; then
 		exit 1
 	fi
 else
-	# check for script running without -t
+	# check for script running without -t/--task
 	duplicate_pids=$(pgrep -f "${SCRIPT_NAME}" | grep -v -E "^(${ancestors})$" | while read -r pid; do
 		if is_descendant "$pid"; then
 			continue
 		fi
-		if ps -p "$pid" -o args= 2>/dev/null | grep -q -v -E -- "-t[[:space:]]+[^[:space:]]+"; then
+		if ps -p "$pid" -o args= 2>/dev/null | grep -q -v -E -- "(-t|--task)[[:space:]]+[^[:space:]]+"; then
 			echo "$pid"
 		fi
 	done)
