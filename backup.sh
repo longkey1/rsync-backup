@@ -45,7 +45,10 @@ function log() {
 		_task="[${TASK_NAME}] "
 	fi
 
-	echo -e "$(date '+%Y/%m/%d %H:%M:%S') ${_task}${_dry_run}$@" | tee -a ${LOG_FILE}
+	(
+		flock -x 9
+		echo -e "$(date '+%Y/%m/%d %H:%M:%S') ${_task}${_dry_run}$@" | tee -a "${LOG_FILE}"
+	) 9>>"${LOG_FILE}.lock"
 }
 function get_last_backup_date() {
 	local _new_backup_date="$1"
@@ -68,12 +71,15 @@ function backup() {
 	if [ -z "${FLAG_EXEC}" ]; then
 		_rsync_option="${_rsync_option} -n"
 	fi
-	local _command="${RSYNC_EXEC} ${_rsync_option} --log-file=${LOG_FILE}"
+	local _command="${RSYNC_EXEC} ${_rsync_option}"
 	if [ -n "${_last_backup_date}" ]; then
 		_command="${_command} --link-dest=../${_last_backup_date}/"
 	fi
 	_command="${_command} ${SRC_DIR}/ ${DST_DIR}/${_new_backup_date}/"
-	echo "${_command}" && eval "${_command}"
+	log "${_command}"
+	eval "${_command}" 2>&1 | while IFS= read -r line; do
+		log "${line}"
+	done
 }
 function backup_rotate() {
 	local _dir_count=0
