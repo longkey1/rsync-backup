@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
 # variables
-NUMBER_OF_BACKUP_STORES=30
+NUMBER_OF_DAILY_KEEP=30
+NUMBER_OF_MONTHLY_KEEP=0
 LOG_FILE="/var/log/rsync-backup.log"
 RSYNC_EXEC="/usr/bin/rsync"
-RSYNC_OPTION="-avz --delete"
+RSYNC_OPTS="-avz --delete"
 RSYNC_EXCLUDE=""
 RSYNC_PASSFILE=""
 #
@@ -22,17 +23,18 @@ Usage:
   $(basename ${0}) [<options>]
 
 Options:
-  -s, --source       source directory
-  -d, --destination  destination directory
-  -n, --number       number of backup stores [default: ${NUMBER_OF_BACKUP_STORES}]
-  -l, --log          log file path [default: ${LOG_FILE}]
-  -e, --exclude      exclude paths, available to separate by space [example: /aaa /bbb]
-  -r, --rsync        rsync executable path [default: ${RSYNC_EXEC}]
-  -p, --password     password file path for rsync daemon authentication
-  -x, --execute      execute mode [default: dry run mode]
-  -o, --option       rsync option [default: -avz --delete]
-  -t, --task         task name for concurrent control [example: task1]
-  -h, --help         print this
+  --src           source directory
+  --dst           destination directory
+  --daily-keep    number of daily backups to keep [default: ${NUMBER_OF_DAILY_KEEP}]
+  --monthly-keep  number of monthly backups to keep [default: disabled]
+  --log-file      log file path [default: ${LOG_FILE}]
+  --exclude       exclude paths, available to separate by space [example: /aaa /bbb]
+  --rsync-path    rsync executable path [default: ${RSYNC_EXEC}]
+  --password-file password file path for rsync daemon authentication
+  --execute       execute mode [default: dry run mode]
+  --rsync-opts    rsync options [default: ${RSYNC_OPTS}]
+  --task          task name for concurrent control [example: task1]
+  --help          print this
 EOF
 	exit 1
 }
@@ -53,96 +55,124 @@ function log() {
 	) 9>>"${LOG_FILE}.lock"
 }
 function get_last_backup_date() {
-	local _new_backup_date="$1"
-	local _last_backup_date=$(ls -r ${DST_DIR}/ 2>/dev/null | grep ^[0-9]*$ | awk -v new="${_new_backup_date}" '$1 < new' | head -1)
+	local _new_date="$1"
+	local _last=$(ls -r "${DST_DIR}/" 2>/dev/null | grep -E '^[0-9]{8}$' | awk -v new="${_new_date}" '$1 < new' | head -1)
 
-	echo ${_last_backup_date}
+	echo ${_last}
 }
-function backup() {
-	local _new_backup_date=$(date +%Y%m%d)
-	local _last_backup_date=$(get_last_backup_date ${_new_backup_date})
-
-	mkdir -p "${DST_DIR}/${_new_backup_date}"
-
-	local _rsync_option="${RSYNC_OPTION}"
+function build_rsync_command() {
+	local _opts="${RSYNC_OPTS}"
 	if [ -n "${RSYNC_PASSFILE}" ]; then
-		_rsync_option="${_rsync_option} --password-file=${RSYNC_PASSFILE}"
+		_opts="${_opts} --password-file=${RSYNC_PASSFILE}"
 	fi
 	if [ -n "${RSYNC_EXCLUDE}" ]; then
 		for ex in ${RSYNC_EXCLUDE}; do
-			_rsync_option="${_rsync_option} --exclude=${ex}"
+			_opts="${_opts} --exclude=${ex}"
 		done
 	fi
 	if [ -z "${FLAG_EXEC}" ]; then
-		_rsync_option="${_rsync_option} -n"
+		_opts="${_opts} -n"
 	fi
-	local _command="${RSYNC_EXEC} ${_rsync_option}"
-	if [ -n "${_last_backup_date}" ]; then
-		_command="${_command} --link-dest=../${_last_backup_date}/"
+	echo "${RSYNC_EXEC} ${_opts}"
+}
+function backup() {
+	local _new_date=$(date +%Y%m%d)
+	local _last_date=$(get_last_backup_date "${_new_date}")
+
+	mkdir -p "${DST_DIR}/${_new_date}"
+
+	local _command="$(build_rsync_command)"
+	if [ -n "${_last_date}" ]; then
+		_command="${_command} --link-dest=../${_last_date}/"
 	fi
-	_command="${_command} ${SRC_DIR}/ ${DST_DIR}/${_new_backup_date}/"
+	_command="${_command} ${SRC_DIR}/ ${DST_DIR}/${_new_date}/"
 	log "${_command}"
 	eval "${_command}" 2>&1 | while IFS= read -r line; do
 		log "${line}"
 	done
 }
 function backup_rotate() {
-	local _dir_count=0
-	for _dir in $(ls -r ${DST_DIR}/); do
-		_dir_count=$(expr ${_dir_count} + 1)
-		if [ ${_dir_count} -gt ${NUMBER_OF_BACKUP_STORES} ]; then
-			if [ -n "${FLAG_EXEC}" ]; then
-				rm -r "${DST_DIR}/${_dir}"
-			fi
-			log "deleted ${DST_DIR}/${_dir} for lotate"
+	local _all_dates=($(ls -r "${DST_DIR}/" | grep -E '^[0-9]{8}$'))
+	local _daily_count=0
+	local _seen_months=()
+	local _monthly_count=0
+
+	for _date in "${_all_dates[@]}"; do
+		_daily_count=$((_daily_count + 1))
+
+		if [ ${_daily_count} -le ${NUMBER_OF_DAILY_KEEP} ]; then
+			continue
 		fi
+
+		if [ ${NUMBER_OF_MONTHLY_KEEP} -gt 0 ]; then
+			local _month="${_date:0:6}"
+			local _already_seen=0
+			for _m in "${_seen_months[@]}"; do
+				[ "${_m}" = "${_month}" ] && _already_seen=1 && break
+			done
+
+			if [ ${_already_seen} -eq 0 ] && [ ${_monthly_count} -lt ${NUMBER_OF_MONTHLY_KEEP} ]; then
+				_seen_months+=("${_month}")
+				_monthly_count=$((_monthly_count + 1))
+				continue
+			fi
+		fi
+
+		if [ -n "${FLAG_EXEC}" ]; then
+			rm -r "${DST_DIR}/${_date}"
+		fi
+		log "deleted ${DST_DIR}/${_date} for rotate"
 	done
 }
 
 # options
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-	-s | --source)
+	--src)
 		SRC_DIR="$2"
 		shift 2
 		;;
-	-d | --destination)
+	--dst)
 		DST_DIR="$2"
 		shift 2
 		;;
-	-n | --number)
-		NUMBER_OF_BACKUP_STORES="$2"
+	--daily-keep)
+		NUMBER_OF_DAILY_KEEP="$2"
 		shift 2
 		;;
-	-l | --log)
+	--monthly-keep)
+		NUMBER_OF_MONTHLY_KEEP="$2"
+		shift 2
+		;;
+	--log-file)
 		LOG_FILE="$2"
 		shift 2
 		;;
-	-r | --rsync)
+	--rsync-path)
 		RSYNC_EXEC="$2"
 		shift 2
 		;;
-	-p | --password)
+	--password-file)
 		RSYNC_PASSFILE="$2"
 		shift 2
 		;;
-	-e | --exclude)
+	--exclude)
 		RSYNC_EXCLUDE="$2"
 		shift 2
 		;;
-	-o | --option)
-		RSYNC_OPTION="$2"
+	--rsync-opts)
+		RSYNC_OPTS="$2"
 		shift 2
 		;;
-	-x | --execute)
+	--execute)
 		FLAG_EXEC="TRUE"
 		shift
 		;;
-	-t | --task)
+	--task)
 		TASK_NAME="$2"
 		shift 2
 		;;
-	-h | --help)
+	--help)
 		usage
 		;;
 	*)
@@ -188,7 +218,7 @@ if [ -n "${TASK_NAME}" ]; then
 		if is_descendant "$pid"; then
 			continue
 		fi
-		if ps -p "$pid" -o args= 2>/dev/null | grep -q -E -- "(-t|--task)[[:space:]]+${TASK_NAME}([[:space:]]|$|;)"; then
+		if ps -p "$pid" -o args= 2>/dev/null | grep -q -E -- "--task[[:space:]]+${TASK_NAME}([[:space:]]|$|;)"; then
 			echo "$pid"
 		fi
 	done)
@@ -197,12 +227,12 @@ if [ -n "${TASK_NAME}" ]; then
 		exit 1
 	fi
 else
-	# check for script running without -t/--task
+	# check for script running without --task
 	duplicate_pids=$(pgrep -f "${SCRIPT_NAME}" | grep -v -E "^(${ancestors})$" | while read -r pid; do
 		if is_descendant "$pid"; then
 			continue
 		fi
-		if ps -p "$pid" -o args= 2>/dev/null | grep -q -v -E -- "(-t|--task)[[:space:]]+[^[:space:]]+"; then
+		if ps -p "$pid" -o args= 2>/dev/null | grep -q -v -E -- "--task[[:space:]]+[^[:space:]]+"; then
 			echo "$pid"
 		fi
 	done)
