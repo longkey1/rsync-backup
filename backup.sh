@@ -52,7 +52,7 @@ function log() {
 	(
 		flock -x 9
 		echo -e "$(date '+%Y/%m/%d %H:%M:%S') ${_task}${_dry_run}$@" | tee -a "${LOG_FILE}"
-	) 9>>"${LOG_FILE}.lock"
+	) 9>>"${LOCK_FILE}"
 }
 function get_last_backup_date() {
 	local _new_date="$1"
@@ -184,6 +184,7 @@ if [ -z "${SRC_DIR}" -o -z "${DST_DIR}" ]; then
 	usage
 	exit 1
 fi
+LOCK_FILE="${TMPDIR:-/tmp}/rsync-backup-$(printf '%s' "${LOG_FILE}" | tr '/' '_').lock"
 
 # duplicate check
 SCRIPT_NAME=$(basename "$0")
