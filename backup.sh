@@ -90,6 +90,10 @@ function backup() {
 	eval "${_command}" 2>&1 | while IFS= read -r line; do
 		log "${line}"
 	done
+
+	if [ -n "${FLAG_EXEC}" ]; then
+		touch "${DST_DIR}/${_new_date}"
+	fi
 }
 function backup_rotate() {
 	local _all_dates=($(ls -r "${DST_DIR}/" | grep -E '^[0-9]{8}$'))
